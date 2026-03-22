@@ -6,39 +6,38 @@ const sgMail = require("@sendgrid/mail");
 const app = express();
 app.use(express.json());
 
-// ENV
+
 const PORT = process.env.PORT || 8080;
 const MONGO_URI = process.env.MONGO_URI;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM;
 
-// SendGrid setup
+
 sgMail.setApiKey(SENDGRID_API_KEY);
 
-// MongoDB connect
+
 mongoose.connect(MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
   .catch(err => console.log(err));
 
-// OTP Schema (TTL cleanup + exact expiry handled manually)
 const otpSchema = new mongoose.Schema({
   email: String,
   otp: String,
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 59 // auto delete ~ after 59s (MongoDB TTL)
+    expires: 59 
   }
 });
 
 const OTP = mongoose.model("OTP", otpSchema);
 
-// Generate OTP
+
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send Email
+
 async function sendEmail(email, otp) {
   try {
     const response = await sgMail.send({
@@ -54,7 +53,7 @@ async function sendEmail(email, otp) {
   }
 }
 
-// Send OTP
+
 app.post("/send-otp", async (req, res) => {
   try {
     const { email } = req.body;
@@ -63,7 +62,7 @@ app.post("/send-otp", async (req, res) => {
 
     const existing = await OTP.findOne({ email });
 
-    // ⏳ Cooldown 30 sec
+ 
     if (existing) {
       const diff = (Date.now() - existing.createdAt) / 1000;
 
@@ -88,7 +87,7 @@ app.post("/send-otp", async (req, res) => {
 }
 });
 
-// Verify OTP
+
 app.post("/verify-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -99,7 +98,6 @@ app.post("/verify-otp", async (req, res) => {
       return res.send("Invalid OTP ❌");
     }
 
-    // ⏳ EXACT expiry check (59 sec)
     const diff = (Date.now() - record.createdAt) / 1000;
 
     if (diff > 59) {
@@ -117,7 +115,7 @@ app.post("/verify-otp", async (req, res) => {
   }
 });
 
-// Start server
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🚀`);
 });
